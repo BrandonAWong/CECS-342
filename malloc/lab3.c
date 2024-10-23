@@ -12,7 +12,7 @@ const int POINTER_SIZE = sizeof(void*);
 struct Block* free_head; // always points to the first free block
 
 void my_initialize_heap(int size) {
-    free_head = malloc(size); 
+    free_head = malloc(size);
     free_head->block_size = size;
     free_head->next_block = NULL;
 }
@@ -24,10 +24,10 @@ void* my_alloc(int size) {
     }
 
     // size must be a multiple of POINTER_SIZE. So, if pointer_size is 4, size
-    // must be at least 4, 8, 12... 
-    if (size % POINTER_SIZE) {
-        printf("Size must be a multiple of pointer size { %d }\n", POINTER_SIZE);
-        //return 0;
+    // must be at least 4, 8, 12...
+    if ((POINTER_SIZE < size && size % POINTER_SIZE) || (POINTER_SIZE > size && POINTER_SIZE % size)) {
+        printf("Size must be a multiple or factor of pointer size { %d }\n", POINTER_SIZE);
+        return 0;
     }
 
     // Iterators
@@ -41,22 +41,21 @@ void* my_alloc(int size) {
         if(curr->block_size >= size) {
             found = true;
             // Determine if the current block can be split.
-            if (curr->block_size > size + OVERHEAD_SIZE + POINTER_SIZE) { // Splittable
+            if (curr->block_size >= size + OVERHEAD_SIZE + POINTER_SIZE) { // Splittable
                 // Create a pointer to the newly split block's position
                 // then assign its structure members.
-                struct Block* splitBlock = (struct Block*)(char*)curr+ size + OVERHEAD_SIZE;
+                struct Block* splitBlock = (struct Block*)((char*)curr + OVERHEAD_SIZE + (size > POINTER_SIZE ? size : POINTER_SIZE));
                 splitBlock->block_size = curr->block_size - size;
                 splitBlock->next_block = curr->next_block;
-                
+
                 // Update Curr's block size as a result of splitting.
-                curr->block_size = curr->block_size - splitBlock->block_size;
+                curr->block_size = size;
                 curr->next_block = splitBlock;
-                
+
                 // Adjust the double linked list, depending on whether curr is the head or not.
                 if (curr == free_head) {
                      prev = curr;
                      free_head = splitBlock;
-                     curr = splitBlock;
                 }
             }
             else { // Not splittable
@@ -66,7 +65,7 @@ void* my_alloc(int size) {
                 }
                 // If curr is not the head, the previous block points to curr's next block.
                 else {
-                    prev = curr->next_block; 
+                    prev = curr->next_block;
                 }
             }
             // Since we found a block, no need to keep searching.
@@ -78,13 +77,13 @@ void* my_alloc(int size) {
             prev = curr;
             curr = curr->next_block;
         }
-    } 
+    }
     // Return a pointer to the allocated data, if possible.
     return curr;
 }
 
 void my_free(void* data) {
-    struct Block* freed_block = (struct Block*)((char*)data - OVERHEAD_SIZE);
+    struct Block* freed_block = (struct Block*)((char*)data);
     freed_block->next_block = free_head;
     free_head = freed_block;
 }
@@ -105,9 +104,9 @@ void menuOptionTwo() {
     int *numTwo = my_alloc(sizeof(int));
     printf("Address of int B: %p\n", numTwo);
     printf("Verifying Results...\n");
-    int overheadPlusLarger = OVERHEAD_SIZE + sizeof(void*);
+    int overheadPlusLarger = OVERHEAD_SIZE + POINTER_SIZE;
     printf("Size of overhead + larger of (the size of an integer; the minimum block size): %d bytes\n", overheadPlusLarger);
-    printf("Address B - Address A: %d bytes \n", *numTwo - *numOne);
+    printf("Address B - Address A: %ld bytes \n", (char*)numTwo - (char*)numOne);
 }
 
 //Allocate three ints and print their addresses, then free the second of the three. Allocate an array of 2
@@ -149,9 +148,9 @@ void menuOptionFive() {
     int *numOne = my_alloc(sizeof(int));
     printf("Address of array: %p\n", arr);
     printf("Address of int A: %p\n", numOne);
-    printf("Address of int value: %p\n", arr + 80 + sizeof(int));
+    printf("Address of int value: %p\n", (char*)arr + (80 * sizeof(int)) + OVERHEAD_SIZE);
     printf("Value of int A: %d\n", *numOne);
-    printf("Difference betwween array and int A: %d\n", *numOne - *arr);
+    printf("Difference betwween array and int A: %ld\n", (char*)numOne - (char*)arr);
     my_free(arr);
     printf("After freeing array...\n");
     printf("Address of int value: %p\n", numOne);
